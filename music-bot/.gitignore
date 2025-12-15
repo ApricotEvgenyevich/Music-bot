@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.venv/
+venv/
+ENV/
+
+# Бот
+.env
+*.db
+downloads/
+
+#	ffmpeg (бинарники не коммитим!)
+ffmpeg/
+
+# Логи
+bot_errors.log
+logs/
+
+# IDE и редакторы
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Тестовые файлы
+test_*.py
+tests/
+
+# Другие
+.DS_Store
+Thumbs.db

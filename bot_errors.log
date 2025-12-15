@@ -1,0 +1,11 @@
+2025-12-15 23:54:56,509 - MusicBot - INFO - 🚀 Бот с функцией скачивания запущен!
+2025-12-15 23:57:10,157 - MusicBot - INFO - 📥 Запрос на скачивание от 1362537530: https://www.youtube.com/watch?v=4VxdufqB9zg
+2025-12-15 23:57:10,158 - MusicBot - INFO - 📥 Начинаю скачивание: https://www.youtube.com/watch?v=4VxdufqB9zg
+2025-12-15 23:57:42,563 - MusicBot - INFO - 📤 Отправлен MP3 пользователю 1362537530
+2025-12-15 23:57:42,564 - MusicBot - INFO - 🧹 Удалены временные файлы: C:\Users\veny9\OneDrive\Рабочий стол\test\downloads\tmp067k6l1f
+2025-12-16 00:05:55,141 - MusicBot - INFO - 📥 Запрос на скачивание от 1362537530: https://www.youtube.com/watch?v=DTbe65nl0fU
+2025-12-16 00:05:55,141 - MusicBot - INFO - 📥 Начинаю скачивание: https://www.youtube.com/watch?v=DTbe65nl0fU
+2025-12-16 00:06:08,132 - MusicBot - INFO - 📤 Отправлен MP3 пользователю 1362537530
+2025-12-16 00:06:08,134 - MusicBot - INFO - 🧹 Удалены временные файлы: C:\Users\veny9\OneDrive\Рабочий стол\test\downloads\tmp7qhdmho0
+2025-12-16 00:09:51,439 - TeleBot - ERROR - Infinity polling: polling exited
+2025-12-16 00:09:51,439 - TeleBot - ERROR - Break infinity polling
