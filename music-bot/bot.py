@@ -8,16 +8,16 @@ import tempfile
 import shutil
 import sys
 
-# Определяем путь к ffmpeg в проекте
+#путь к ffmpeg
 if sys.platform.startswith('win'):
     FFMPEG_PATH = os.path.join(os.path.dirname(__file__), 'ffmpeg', 'bin', 'ffmpeg.exe')
 else:
     FFMPEG_PATH = os.path.join(os.path.dirname(__file__), 'ffmpeg', 'bin', 'ffmpeg')
 
-# Проверяем, что ffmpeg существует
+#существование ffmpeg 
 if not os.path.exists(FFMPEG_PATH):
     raise FileNotFoundError(f"ffmpeg не найден по пути: {FFMPEG_PATH}")
-# Настройка логирования
+#настройка логирования
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -28,7 +28,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("MusicBot")
 
-# Загружаем переменные из .env
+#загрузка из .env
 load_dotenv()
 BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 
@@ -39,7 +39,7 @@ if not BOT_TOKEN:
 bot = telebot.TeleBot(BOT_TOKEN)
 DOWNLOAD_DIR = "downloads"
 
-# Создаём папку для загрузок
+#папка для загрузок
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 def download_youtube_audio(url: str) -> str:
@@ -87,7 +87,7 @@ def download_youtube_audio(url: str) -> str:
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     try:
-        bot.reply_to(message, "🎵 Привет! Отправь ссылку на YouTube, и я пришлю MP3!")
+        bot.reply_to(message, "🎵 Привет! Отправь ссылку, и я пришлю MP3!")
     except Exception as e:
         logger.error(f"Ошибка в /start: {str(e)}")
 
@@ -97,7 +97,7 @@ def handle_message(message):
         text = message.text.strip()
         user_id = message.from_user.id
         
-        # Проверка ссылки
+        #проверка ссылки
         if not ("youtube.com" in text or "youtu.be" in text):
             bot.reply_to(message, "❌ Пожалуйста, отправь ссылку на YouTube видео.")
             return
@@ -105,17 +105,17 @@ def handle_message(message):
         bot.reply_to(message, "⏳ Скачиваю аудио... Это может занять 1-2 минуты.")
         logger.info(f"📥 Запрос на скачивание от {user_id}: {text}")
 
-        # Скачиваем аудио
+        #скачивание mp3
         mp3_path = download_youtube_audio(text)
         
-        # Проверяем размер (Telegram ограничивает 50 МБ)
+        #размер макс 50мб
         file_size = os.path.getsize(mp3_path) / (1024 * 1024)  # в МБ
         if file_size > 50:
             os.remove(mp3_path)
             bot.reply_to(message, f"❌ Файл слишком большой ({file_size:.1f} МБ). Максимум 50 МБ.")
             return
 
-        # Отправляем файл
+        #отправка mp3
         with open(mp3_path, 'rb') as audio:
             bot.send_audio(message.chat.id, audio, caption="✅ Готово! Наслаждайся музыкой!")
         
@@ -131,7 +131,7 @@ def handle_message(message):
         bot.reply_to(message, "⚠️ Произошла ошибка при обработке запроса.")
         
     finally:
-        # Очищаем временные файлы
+        #очитска временных файлов
         try:
             if 'mp3_path' in locals() and os.path.exists(mp3_path):
                 parent_dir = os.path.dirname(mp3_path)
