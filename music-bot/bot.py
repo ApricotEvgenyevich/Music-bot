@@ -89,11 +89,6 @@ def download_youtube_audio(url: str) -> str:
         logger.error(f"Ошибка при скачивании: {str(e)}")
         raise
 
-@bot.message_handler(commands=['start'])
-def start(message):
-    show_main_menu(message.chat.id)    
-    bot.send_message(message.chat.id, "👋 Используй кнопку ниже для быстрого вызова меню!", reply_markup=get_reply_keyboard())
-
 
 @bot.callback_query_handler(func=lambda call: call.data == "back_to_menu")
 def back_to_menu(call):    
@@ -107,61 +102,8 @@ def add_music(call):
     back_btn = types.InlineKeyboardButton("⬅️ Назад", callback_data='back_to_menu')
     markup.add(back_btn)  
 
-    bot.edit_message_text("🎧 Отправь ссылку на YouTube или сам аудиофайл:", call.message.chat.id, call.message.message_id, reply_markup=markup)    
-    bot.send_message(call.message.chat.id, "📝 Ты можешь отправить ссылку или аудиофайл прямо здесь 👇", )
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("add_audio_"))
-def add_audio_file(call):
-    user_id = call.from_user.id
-    
-    if user_id not in user_states or user_states[user_id]['action'] != 'pending_audio_add':
-        bot.answer_callback_query(call.id, "❌ Время действия истекло. Отправьте аудиофайл снова.")
-        return
-    
-    audio_data = user_states[user_id]['audio_data']
-    db_user_id = get_or_create_user(user_id, call.from_user.username)
-    
-    try:
-        track_id = add_track(
-            db_user_id,
-            audio_data['file_id'],
-            audio_data['title'],
-            audio_data['artist'],
-            audio_data['duration']
-        )
-        
-        bot.answer_callback_query(call.id, f"✅ Трек '{audio_data['title']}' добавлен в твою коллекцию!")
-        
-        bot.edit_message_text(
-            f"🎉 *Трек успешно добавлен!*\n\n"
-            f"📀 *Название:* {audio_data['title']}\n"
-            f"🎤 *Исполнитель:* {audio_data['artist']}\n"
-            f"⏱ *Длительность:* {audio_data['duration'] // 60}:{audio_data['duration'] % 60:02d}",
-            call.message.chat.id,
-            call.message.message_id,
-            parse_mode='Markdown'
-        )
-        
-        markup = types.InlineKeyboardMarkup()
-        my_music_btn = types.InlineKeyboardButton("📁 Моя музыка", callback_data="my_music")
-        play_now_btn = types.InlineKeyboardButton("▶️ Воспроизвести сейчас", callback_data=f"play_track_{track_id}")
-        back_btn = types.InlineKeyboardButton("⬅️ В главное меню", callback_data="back_to_menu")
-        markup.add(my_music_btn, play_now_btn)
-        markup.add(back_btn)
-        
-        bot.send_message(
-            call.message.chat.id,
-            "🎵 *Что дальше?*",
-            parse_mode='Markdown',
-            reply_markup=markup
-        )
-        
-    except Exception as e:
-        logger.error(f"Ошибка при добавлении аудиофайла: {str(e)}")
-        bot.answer_callback_query(call.id, "❌ Ошибка при добавлении трека!")
-    
-    if user_id in user_states:
-        del user_states[user_id]
+    bot.edit_message_text("🎧 Отправь ссылку на YouTube:", call.message.chat.id, call.message.message_id, reply_markup=markup)    
+    bot.send_message(call.message.chat.id, "📝 Ты можешь отправить ссылку здесь 👇", )
 
 
 @bot.callback_query_handler(func=lambda call: call.data == "my_music")
@@ -370,6 +312,7 @@ def select_playlist_for_track(call):
     else:
         bot.answer_callback_query(call.id, "❌ Ошибка при добавлении трека в плейлист!")
 
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith("remove_from_playlist_"))
 def remove_track_from_playlist_handler(call):
     parts = call.data.split("_")
@@ -392,128 +335,82 @@ def create_playlist_start(call):
     bot.send_message(call.message.chat.id, "📝 Напиши название плейлиста 👇")
 
 
+@bot.message_handler(commands=['start'])
+def start(message):
+    show_main_menu(message.chat.id)    
+
+
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    user_id = message.from_user.id        
+    user_id = message.from_user.id
+    logger.info(f"📨 Входящее: тип={message.content_type}, текст={getattr(message,'text','НЕТ')}, user_id={user_id}")
     
     if message.content_type == 'text' and message.text == '/start':
         show_main_menu(message.chat.id)
-        bot.send_message(message.chat.id, "👋 Используй кнопку ниже для быстрого вызова меню!", reply_markup=get_reply_keyboard())        
-        
-        if user_id in user_states:
-            del user_states[user_id]
-        return    
-    
-    if user_id in user_states:
-        state = user_states[user_id]['action']        
-        
-        if state == 'waiting_for_playlist_name':            
-            db_user_id = get_or_create_user(user_id, message.from_user.username)
-            playlist_id = create_playlist(db_user_id, message.text.strip())
-            del user_states[user_id]            
-            markup = types.InlineKeyboardMarkup()
-            back_btn = types.InlineKeyboardButton("⬅️ В главное меню", callback_data='back_to_menu')
-            markup.add(back_btn)            
-            bot.reply_to(message, f"✅ Плейлист '{message.text}' успешно создан!", reply_markup=markup)            
-            bot.send_message(message.chat.id, "🎉 Плейлист создан! Используй кнопку /start для быстрого доступа к меню.", reply_markup=get_reply_keyboard())
-            return    
-            
-        elif state == 'waiting_for_track':            
-            db_user_id = get_or_create_user(user_id, message.from_user.username)            
-            
-            if message.content_type == 'audio':                
-                file_id = message.audio.file_id
-                title = message.audio.title or "Без названия"
-                artist = message.audio.performer or "Неизвестный исполнитель"
-                duration = message.audio.duration                
-                track_id = add_track(db_user_id, file_id, title, artist, duration)                
-                markup = types.InlineKeyboardMarkup()
-                back_btn = types.InlineKeyboardButton("⬅️ В главное меню", callback_data='back_to_menu')
-                markup.add(back_btn)                
-                bot.reply_to(message, f"✅ Трек '{title}' успешно добавлен в твою коллекцию!", reply_markup=markup)                
-                bot.send_message(message.chat.id, "🎵 Трек добавлен! Используй кнопку /start для быстрого доступа к меню.", reply_markup=get_reply_keyboard()) 
-
-            elif message.content_type == 'text' and ('youtube.com' in message.text or 'youtu.be' in message.text):                
-                bot.reply_to(message, "⏳ Скачиваю аудио... Это может занять 1-2 минуты.")
-                logger.info(f"📥 Запрос на скачивание: {message.text}")                
-                
-                try:
-                    mp3_path = download_youtube_audio(message.text.strip())                      
-                    with open(mp3_path, 'rb') as audio:
-                        sent_message = bot.send_audio(message.chat.id,  audio, caption="✅ Трек скачан! Теперь он сохранён в твоей коллекции.", title=os.path.basename(mp3_path).replace('.mp3', ''),
-                            performer="SwagaGod")                    
-                    file_id = sent_message.audio.file_id
-                    title = os.path.basename(mp3_path).replace('.mp3', '')
-                    duration = None                    
-                    track_id = add_track(db_user_id, file_id, title, duration=duration)                    
-                    os.remove(mp3_path)
-                    parent_dir = os.path.dirname(mp3_path)
-                    shutil.rmtree(parent_dir, ignore_errors=True)    
-                    bot.send_message(message.chat.id, "🎵 Трек скачан! Используй кнопку /start для быстрого доступа к меню.", reply_markup=get_reply_keyboard())                    
-                
-                except Exception as e:
-                    logger.error(f"Ошибка при скачивании: {str(e)}")
-                    bot.reply_to(message, "❌ Не удалось скачать аудио. Проверьте ссылку или попробуйте позже.")
-                    bot.send_message(message.chat.id, "🔄 Используй кнопку /start, чтобы попробовать снова.", reply_markup=get_reply_keyboard())            
-            else:
-                bot.reply_to(message, "❌ Неподдерживаемый формат. Отправьте ссылку YouTube или аудиофайл.")                
-                bot.send_message(message.chat.id, "🔄 Используй кнопку /start, чтобы вернуться в меню.", reply_markup=get_reply_keyboard())            
-            del user_states[user_id]
-            return
-    
-    elif message.content_type == 'audio':
-        audio_info = {
-            'file_id': message.audio.file_id,
-            'title': message.audio.title or "Без названия",
-            'artist': message.audio.performer or "Неизвестный исполнитель",
-            'duration': message.audio.duration
-        }
-        
-        markup = types.InlineKeyboardMarkup()
-        add_btn = types.InlineKeyboardButton("✅ Добавить в мою музыку", callback_data=f"add_audio_{message.audio.file_id}")
-        markup.add(add_btn)
-        
-        user_states[user_id] = {
-            'action': 'pending_audio_add',
-            'audio_data': audio_info
-        }
-        
-        duration_str = f"{message.audio.duration // 60}:{message.audio.duration % 60:02d}" if message.audio.duration else "??:??"
-        
-        bot.reply_to(
-            message,
-            f"🎵 *Обнаружен аудиофайл:*\n"
-            f"📀 *Название:* {audio_info['title']}\n"
-            f"🎤 *Исполнитель:* {audio_info['artist']}\n"
-            f"⏱ *Длительность:* {duration_str}\n\n"
-            f"Добавить этот трек в твою коллекцию?",
-            parse_mode='Markdown',
-            reply_markup=markup
-        )
+        bot.send_message(message.chat.id,"👋 Используй кнопку ниже для быстрого вызова меню!",reply_markup=get_reply_keyboard())
+        if user_id in user_states: del user_states[user_id]
         return
     
-            
-    if message.content_type == 'text' and ('youtube.com' in message.text or 'youtu.be' in message.text):
-        bot.reply_to(message, "⏳ Скачиваю аудио... Это может занять 1-2 минуты.")
-        logger.info(f"📥 Запрос на скачивание: {message.text}")        
+    if user_id in user_states:
+        state = user_states[user_id]['action']
+        logger.info(f"Пользователь в состоянии: {state}")
         
+        if state == 'waiting_for_playlist_name':
+            db_user_id = get_or_create_user(user_id,message.from_user.username)
+            playlist_id = create_playlist(db_user_id,message.text.strip())
+            del user_states[user_id]
+            markup = types.InlineKeyboardMarkup()
+            back_btn = types.InlineKeyboardButton("⬅️ В главное меню",callback_data='back_to_menu')
+            markup.add(back_btn)
+            bot.reply_to(message,f"✅ Плейлист '{message.text}' успешно создан!",reply_markup=markup)
+            bot.send_message(message.chat.id,"🎉 Плейлист создан!",reply_markup=get_reply_keyboard())
+            return
+            
+        elif state == 'waiting_for_track':
+            logger.info("Обработка трека в состоянии waiting_for_track")
+            db_user_id = get_or_create_user(user_id,message.from_user.username)
+                
+            if message.content_type == 'text' and ('youtube.com' in message.text or 'youtu.be' in message.text):
+                logger.info(f"Получена YouTube ссылка: {message.text}")
+                bot.reply_to(message,"⏳ Скачиваю аудио... Это может занять 1-2 минуты.")
+                try:
+                    mp3_path = download_youtube_audio(message.text.strip())
+                    with open(mp3_path,'rb') as audio:
+                        sent_message = bot.send_audio(message.chat.id,audio,caption="✅ Трек скачан! Теперь он сохранён в твоей коллекции.",title=os.path.basename(mp3_path).replace('.mp3',''),performer="SwagaGod")
+                    file_id = sent_message.audio.file_id
+                    title = os.path.basename(mp3_path).replace('.mp3','')
+                    duration = None
+                    track_id = add_track(db_user_id,file_id,title,duration=duration)
+                    logger.info(f"YouTube трек сохранён с ID: {track_id}")
+                    os.remove(mp3_path)
+                    parent_dir = os.path.dirname(mp3_path)
+                    shutil.rmtree(parent_dir,ignore_errors=True)
+                    bot.send_message(message.chat.id,"🎵 Трек скачан!",reply_markup=get_reply_keyboard())
+                except Exception as e:
+                    logger.error(f"Ошибка при скачивании: {str(e)}")
+                    bot.reply_to(message,"❌ Не удалось скачать аудио. Проверьте ссылку или попробуйте позже.")
+                del user_states[user_id]
+            else:
+                bot.reply_to(message,"❌ Неподдерживаемый формат. Отправьте ссылку YouTube или аудиофайл.")
+                del user_states[user_id]
+            return
+    
+    elif message.content_type == 'text' and ('youtube.com' in message.text or 'youtu.be' in message.text):
+        logger.info(f"YouTube ссылка получена вне состояния: {message.text}")
+        bot.reply_to(message,"⏳ Скачиваю аудио... Это может занять 1-2 минуты.")
         try:
-            mp3_path = download_youtube_audio(message.text.strip())            
-            with open(mp3_path, 'rb') as audio:
-                bot.send_audio(message.chat.id,  audio,  caption="✅ Готово! Наслаждайся музыкой!", reply_markup=get_reply_keyboard())                
+            mp3_path = download_youtube_audio(message.text.strip())
+            with open(mp3_path,'rb') as audio:
+                bot.send_audio(message.chat.id,audio,caption="✅ Готово! Наслаждайся музыкой!",reply_markup=get_reply_keyboard())
             os.remove(mp3_path)
             parent_dir = os.path.dirname(mp3_path)
-            shutil.rmtree(parent_dir, ignore_errors=True)            
-        
+            shutil.rmtree(parent_dir,ignore_errors=True)
         except Exception as e:
             logger.error(f"Ошибка при скачивании: {str(e)}")
-            bot.reply_to(message, "❌ Не удалось скачать аудио. Проверьте ссылку или попробуйте позже.")
-
-
-@bot.message_handler(func=lambda message: message.text and message.text.lower() in ['меню', 'menu', 'начать', 'start'])
-def text_menu_handler(message):    
-    show_main_menu(message.chat.id)
-    bot.send_message(message.chat.id, "👋 Используй кнопку /start для быстрого вызова меню!", reply_markup=get_reply_keyboard())
+            bot.reply_to(message,"❌ Не удалось скачать аудио. Проверьте ссылку или попробуйте позже.")
+    
+    elif message.content_type == 'text':
+        logger.info(f"Получен текст вне команд: {message.text}")
 
 
 if __name__ == '__main__':
